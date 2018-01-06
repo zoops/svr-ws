@@ -24,13 +24,13 @@ app.get('/', function(req, res, next){
   res.send('Hello World');  
   //  res.end();
 });
-/*
+
 app.ws('/echo', function(ws, req) {
   ws.on('message', function(msg) {
     ws.send(msg);
   });
 });
-*/
+
 app.listen(app.get( 'port' ), function(){
   console.log( 'Express server listening on port ' + app.get( 'port' ));
 });
