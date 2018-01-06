@@ -1,7 +1,7 @@
 var express        = require( 'express' );
 var http           = require( 'http' );
 var app            = express();
-// var expressWs      = require('express-ws')(app);
+var expressWs      = require('express-ws')(app);
 
 app.set( 'port', process.env.PORT || 3001 );
 /*
