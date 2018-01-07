@@ -3,10 +3,17 @@ var http           = require( 'http' );
 var app            = express();
 var expressWs      = require('express-ws')(app);
 
+var signalClients = [];
+var rooms = {};
+
 app.set( 'port', process.env.PORT || 3001 );
 
 app.get('/', function(req, res, next){
   res.send('Hello World');  
+});
+
+app.get('/roomlist', function(req, res, next){
+  res.send(Object.keys(rooms));  
 });
 
 app.ws('/echo', function(ws, req) {
@@ -14,8 +21,6 @@ app.ws('/echo', function(ws, req) {
     ws.send(msg);
   });
 });
-
-var signalClients = [];
 
 app.ws('/signal', function(ws, req) {
 
@@ -36,19 +41,17 @@ app.ws('/signal', function(ws, req) {
   });
 });
 
-var rooms = {};
-
-function send(tgt, from_user, message) {
+function send(tgt, code, message) {
   if (tgt) {
-      tgt.send(JSON.stringify({ user: from_user, message: message}));
+      tgt.send(JSON.stringify({ code: code, msg: message}));
   }
 }
 
-function broadcast(room, from_ws, user, message) {
+function broadcast(room, from_ws, code, message) {
   room.forEach(function(tgt) {
       try {
           if (tgt != from_ws) {
-              send(tgt, user, message);
+              send(tgt, code, message);
           }
       } catch (e) {
           room.delete(tgt);
@@ -57,41 +60,50 @@ function broadcast(room, from_ws, user, message) {
 }
 
 app.ws('/room/:room', function(ws, req) {
-  var room_name = req.params.room;
-  if (!(room_name in rooms)) {
-      log.info({ room: room_name }, "new room created");
-      rooms[room_name] = new Set([ws]);
-  } else {
-      rooms[room_name].add(ws);
-  }
-  var room = rooms[room_name];
+  try {
+    var room_name = req.params.room;
+    if (!(room_name in rooms)) {
+      console.info({ room: room_name }, "new room created");
+        rooms[room_name] = new Set([ws]);
+    } else {
+      console.info(room_name + ' : ' + rooms[room_name].size);      
+      if (rooms[room_name].size >= 2) {
+        var errmsg = {code : '99', msg : 'can not enter more than two client' };
+        ws.send(JSON.stringify(errmsg));
+        ws.close();
+      }
+      else {
+        rooms[room_name].add(ws);
+        if (rooms[room_name].size == 2) {
+          broadcast(rooms[room_name], null, '01', 'start');
+        }
+      }    
+    }
 
-  ws.on('message', function(msg) {
-      var user = 'anonymous';
-      try {
-          var parsed = JSON.parse(msg);
-          if ("user" in parsed && "message" in parsed) {
-              user = parsed.user;
-              msg = parsed.message;
-          } else {
-              throw new Error();
+    var room = rooms[room_name];
+
+    ws.on('close', function() {
+      console.log('The connection was closed!');
+      room.forEach(function(tgt){
+        try {
+          if (tgt == ws) {
+            room.delete(tgt);
+            if (room.size == 0) {
+              delete rooms[room_name];
+            }
           }
-      } catch (error) {
-          log.info({ msg: msg }, "Plain text message (not JSON) treated as from anonymous");
-      }
-      if (msg == "_announce_") {
-          send(ws, "Room", "Welcome to chat room " + room_name);
-          msg = user + " has joined the chat";
-          user = "Room";
-      }
-      broadcast(room, ws, user, msg);
-      if (msg != "_announce") {
-          log.info({ user: user, message: msg, room: "room_" + room_name, type: "chat_message",
-              sent: new Date()}, "user message");
-      }
-  });
+        } catch (e) {
+          console.error(e);
+        }
+      });      
+    });
 
-  send(ws, "Room", "_whois_");
+    ws.on('message', function(msg) {
+        broadcast(room, ws, '00', msg);
+    });
+  } catch (error) {
+    console.error(error);    
+  }    
 });
 
 
