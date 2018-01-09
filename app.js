@@ -31,7 +31,7 @@ app.ws('/signal', function(ws, req) {
 
     signalClients.forEach(function(tgt) {
         try {
-          if (tgt != ws) {
+          if (tgt && tgt != ws) {
             tgt.send(msg);
           }
         } catch (e) {
@@ -39,6 +39,13 @@ app.ws('/signal', function(ws, req) {
         }
       });
   });
+
+  ws.on('close', function() {
+    console.log('The signal server connection was closed!');
+    const idx = signalClients.indexOf(ws);
+     if (idx > -1) signalClients.splice(idx, 1);
+  });      
+
 });
 
 function send(tgt, code, message) {
