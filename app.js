@@ -10,8 +10,6 @@ var protocolType = {
   START : '01',
 };
 
-var stopwatchTop10 = [];
-
 app.set( 'port', process.env.PORT || 3001 );
 
 app.use(function(req, res, next) {
@@ -23,6 +21,8 @@ app.use(function(req, res, next) {
 app.get('/', function(req, res, next){
   res.send('Hello World');  
 });
+
+var stopwatchTop10 = [];
 
 app.get('/stopwatch/record', function(req, res, next) {
   console.info(req);
